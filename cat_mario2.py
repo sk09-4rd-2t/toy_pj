@@ -19,7 +19,7 @@ YELLOW = (255, 255, 0)
 
 # 화면 생성 (Create screen)
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption("Cat Mario")
+pygame.display.set_caption("환쨩의 마리오")
 clock = pygame.time.Clock()
 
 # 이미지 불러오기 함수 (Image loading function)
@@ -72,9 +72,7 @@ class Cat:
         self.on_ground = False
         self.lives = 3
         
-        # 점프 관련 변수 추가 (Add jump-related variables)
-        self.can_double_jump = False  # 이중 점프 가능 여부 (Double jump availability)
-        self.jump_count = 0           # 점프 횟수 카운트 (Jump count)
+        # 점프 관련 변수 (Jump-related variables) - 이중 점프 제거
         self.jump_held = False        # 점프 키 홀드 상태 (Jump key held status)
         self.jump_time = 0            # 점프 지속 시간 (Jump duration)
         self.max_jump_time = 15       # 최대 점프 유지 시간 (Maximum jump hold time)
@@ -84,6 +82,10 @@ class Cat:
         self.image.fill(BLUE)
         
     def update(self, platforms, traps, keys):
+        # 이전 위치 저장 (Store previous position)
+        prev_x = self.x
+        prev_y = self.y
+        
         # 중력 적용 (Apply gravity)
         self.velocity_y += self.gravity
         
@@ -92,27 +94,36 @@ class Cat:
             self.velocity_y = self.jump_power * 0.6
             self.jump_time += 1
         
-        # 위치 업데이트 (Update position)
-        self.x += self.velocity_x
+        # 위치 업데이트 (Update position) - X와 Y 분리하여 충돌 체크 개선
+        self.x += self.velocity_x  # X 방향 이동
+        
+        # X 방향 충돌 체크 (Horizontal collision check)
+        for platform in platforms:
+            if self.collision_check(platform):
+                # 왼쪽이나 오른쪽 충돌 (Left or right collision)
+                if self.velocity_x > 0:  # 오른쪽 이동 중 (Moving right)
+                    self.x = platform.x - self.width
+                elif self.velocity_x < 0:  # 왼쪽 이동 중 (Moving left)
+                    self.x = platform.x + platform.width
+        
+        # Y 방향 이동 (Vertical movement)
         self.y += self.velocity_y
         
         # 화면 경계 체크 (왼쪽만, 오른쪽은 맵 계속됨) (Check screen boundaries, only left as right side is open for map continuation)
         if self.x < 0:
             self.x = 0
         
-        # 플랫폼 충돌 체크 (Platform collision check)
+        # 플랫폼 충돌 체크 (Platform collision check) - Y 방향만
         self.on_ground = False
         for platform in platforms:
             if self.collision_check(platform):
                 # 플랫폼 위에 착지 (Landing on top of platform)
-                if self.velocity_y > 0 and self.y + self.height <= platform.y + 10:
+                if self.velocity_y > 0 and prev_y + self.height <= platform.y + 5:
                     self.on_ground = True
                     self.velocity_y = 0
                     self.y = platform.y - self.height
-                    self.jump_count = 0  # 착지 시 점프 카운트 초기화 (Reset jump count when landing)
-                    self.can_double_jump = True  # 이중 점프 능력 회복 (Restore double jump ability)
                 # 플랫폼 밑에서 부딪힘 (Hitting platform from below)
-                elif self.velocity_y < 0 and self.y >= platform.y + platform.height - 10:
+                elif self.velocity_y < 0 and prev_y >= platform.y + platform.height - 5:
                     self.velocity_y = 0
                     self.y = platform.y + platform.height
                     self.jump_time = self.max_jump_time  # 점프 중단 (Stop jump)
@@ -123,7 +134,6 @@ class Cat:
                 self.lives -= 1
                 self.x = 100  # 리스폰 위치 (Respawn position)
                 self.y = 300
-                self.jump_count = 0  # 리스폰 시 점프 카운트 초기화 (Reset jump count on respawn)
                 break
         
         # 화면 밖으로 떨어짐 (Falling off the screen)
@@ -131,27 +141,16 @@ class Cat:
             self.lives -= 1
             self.x = 100  # 리스폰 위치 (Respawn position)
             self.y = 300
-            self.jump_count = 0  # 리스폰 시 점프 카운트 초기화 (Reset jump count on respawn)
     
     def jump(self, held=False):
         # 점프 키를 눌렀을 때 (When jump key is pressed)
         if held:
             # 키를 처음 눌렀을 때만 점프 시작 (Start jump only when key is first pressed)
-            if not self.jump_held:
-                if self.on_ground:
-                    # 바닥에서 첫 번째 점프 (First jump from ground)
-                    self.velocity_y = self.jump_power
-                    self.on_ground = False
-                    self.jump_count = 1
-                    self.jump_time = 0
-                    self.jump_held = True
-                elif self.can_double_jump and self.jump_count < 2:
-                    # 공중에서 이중 점프 (Double jump in air)
-                    self.velocity_y = self.jump_power * 0.8
-                    self.jump_count = 2
-                    self.can_double_jump = False
-                    self.jump_time = 0
-                    self.jump_held = True
+            if not self.jump_held and self.on_ground:  # 이중 점프 제거, 바닥에서만 점프 가능
+                self.velocity_y = self.jump_power
+                self.on_ground = False
+                self.jump_time = 0
+                self.jump_held = True
         else:
             # 점프 키를 뗐을 때 홀드 상태 해제 (Release hold state when jump key is released)
             self.jump_held = False
@@ -236,7 +235,7 @@ class Item:
         if -self.width < screen_x < SCREEN_WIDTH and -self.height < screen_y < SCREEN_HEIGHT:
             screen.blit(self.image, (screen_x, screen_y))
 
-# 맵 생성 함수 (많은 함정 포함) (Map generation function with many traps)
+# 맵 생성 함수 - 높이 및 간격 조정 (Map generation function - adjusted heights and spacing)
 def generate_map():
     platforms = []
     traps = []
@@ -245,73 +244,111 @@ def generate_map():
     # 맵 전체 너비 (Total map width)
     map_width = 5000
     
-    # 바닥 플랫폼 (여러 조각으로 나눔) (Floor platforms divided into segments)
-    floor_gap = 100  # 구멍 크기 (Gap size for holes)
-    current_x = 0
+    # 스테이지 1: 시작 영역 (Stage 1: Starting area)
+    # ===================================================
     
-    while current_x < map_width:
-        if random.random() < 0.2 and current_x > 300:  # 시작 부분에는 구멍 없음 (No holes at the beginning)
-            # 구멍 생성 (Create a hole)
-            hole_size = random.randint(1, 2) * floor_gap
-            current_x += hole_size
-        else:
-            # 바닥 조각 생성 (Create floor segment)
-            platform_length = random.randint(3, 8) * floor_gap
-            platforms.append(Platform(current_x, 550, platform_length, 50))
-            
-            # 함정 추가 (바닥 위 가시) (Add traps - spikes on floor)
-            trap_count = random.randint(0, int(platform_length/floor_gap/2))
-            for _ in range(trap_count):
-                trap_x = current_x + random.randint(1, int(platform_length/floor_gap) - 1) * floor_gap
-                trap_type = random.choice(['spike', 'hidden', 'lava'])
-                traps.append(Trap(trap_x, 530, 50, 20, trap_type))
-            
-            # 코인 추가 (Add coins)
-            coin_count = random.randint(0, int(platform_length/floor_gap/2))
-            for _ in range(coin_count):
-                coin_x = current_x + random.randint(1, int(platform_length/floor_gap) - 1) * floor_gap
-                items.append(Item(coin_x, 480, 'coin'))
-            
-            current_x += platform_length
+    # 바닥 플랫폼 (Floor platforms)
+    platforms.append(Platform(0, 550, 600, 50))      # 시작 지점 바닥 (Starting area floor)
+    platforms.append(Platform(700, 550, 300, 50))    # 첫 번째 점프 후 바닥 (Floor after first jump)
+    platforms.append(Platform(1100, 550, 400, 50))   # 두 번째 구간 바닥 (Second section floor)
     
-    # 추가 플랫폼 (공중에 떠 있는 것들) (Additional floating platforms)
-    for i in range(100):  # 50개에서 100개로 증가 (Increased from 50 to 100 platforms)
-        x = random.randint(300, map_width - 300)
-        y = random.randint(200, 500)
-        width = random.randint(100, 200)
-        
-        platforms.append(Platform(x, y, width, 20))
-        
-        # 일부 플랫폼에 함정 추가 (Add traps on some platforms)
-        if random.random() < 0.4:  # 40% 확률로 함정 생성 (30%에서 증가) (40% chance for a trap, increased from 30%)
-            trap_x = x + random.randint(10, int(width) - 60)
-            trap_type = random.choice(['spike', 'poison', 'lava'])
-            traps.append(Trap(trap_x, y - 20, 40, 20, trap_type))
-        
-        # 플랫폼 위에 아이템 추가 (Add items on platforms)
-        if random.random() < 0.3:
-            item_x = x + width/2
-            item_type = random.choice(['coin', 'coin', 'coin', 'life', 'powerup'])
-            items.append(Item(item_x, y - 40, item_type))
+    # 첫 번째 함정 구간 (First trap section)
+    traps.append(Trap(600, 550, 100, 50, 'lava'))    # 첫 번째 구멍 (First gap)
+    traps.append(Trap(1000, 550, 100, 50, 'lava'))   # 두 번째 구멍 (Second gap)
     
-    # 함정 지역 추가 (특별히 어려운 구간) (Add trap zones - especially difficult sections)
-    for i in range(5):  # 5개의 어려운 구간 (5 difficult sections)
-        start_x = random.randint(1000, map_width - 1000)
-        
-        # 집중된 함정 구역 만들기 (Create concentrated trap areas)
-        for j in range(10):
-            trap_x = start_x + j * 50
-            trap_y = random.randint(300, 500)
-            trap_type = random.choice(['spike', 'lava', 'poison'])
-            traps.append(Trap(trap_x, trap_y, 30, 30, trap_type))
+    # 첫 번째 아이템들 (First items)
+    items.append(Item(300, 480, 'coin'))
+    items.append(Item(350, 480, 'coin'))
+    items.append(Item(400, 480, 'coin'))
+    items.append(Item(800, 480, 'coin'))
+    items.append(Item(850, 480, 'coin'))
+    items.append(Item(900, 480, 'coin'))
     
-    # 최종 목표 지점 (Final goal)
-    goal_x = map_width - 200
-    goal_y = 450
-    platforms.append(Platform(goal_x, goal_y, 100, 100))
+    # 스테이지 2: 플랫폼 점프 영역 (Stage 2: Platform jumping area)
+    # ===================================================
     
-    # 목표 근처에 생명 아이템 추가 (Add life item near goal)
-    items.append(Item(goal_x - 100, goal_y - 50, 'life'))
+    # 메인 바닥 플랫폼 (Main floor platform)
+    platforms.append(Platform(1600, 550, 700, 50))
+    
+    # 점프 플랫폼 시퀀스 - 단일 점프로 도달 가능하도록 조정
+    # Jump platform sequence - adjusted to be reachable with a single jump
+    platforms.append(Platform(1700, 470, 100, 20))   # 높이 하향 조정 (Lowered height)
+    platforms.append(Platform(1850, 470, 100, 20))   # 높이 통일 (Unified height)
+    platforms.append(Platform(2000, 470, 100, 20))   # 높이 통일 (Unified height)
+    platforms.append(Platform(2150, 470, 100, 20))   # 높이 통일 (Unified height)
+    
+    # 코인 경로 조정 (Adjusted coin path)
+    items.append(Item(1750, 420, 'coin'))
+    items.append(Item(1900, 420, 'coin'))
+    items.append(Item(2050, 420, 'coin'))
+    items.append(Item(2200, 420, 'coin'))
+    
+    # 생명 아이템 (Life item)
+    items.append(Item(2150, 420, 'life'))
+    
+    # 스테이지 3: 함정 도전 구간 (Stage 3: Trap challenge)
+    # ===================================================
+    
+    # 메인 바닥 (Main floor)
+    platforms.append(Platform(2400, 550, 800, 50))
+    
+    # 함정 배치 (Trap placement)
+    traps.append(Trap(2500, 530, 50, 20, 'spike'))
+    traps.append(Trap(2600, 530, 50, 20, 'spike'))
+    traps.append(Trap(2700, 530, 50, 20, 'spike'))
+    traps.append(Trap(2900, 530, 50, 20, 'hidden'))
+    traps.append(Trap(3000, 530, 50, 20, 'hidden'))
+    
+    # 점프해서 피해가는 플랫폼 - 높이 조정 (Platforms to jump over traps - adjusted height)
+    platforms.append(Platform(2500, 470, 300, 20))  # 높이 하향 조정 (Lowered height)
+    platforms.append(Platform(2900, 470, 200, 20))  # 높이 하향 조정 (Lowered height)
+    
+    # 코인 배치 (Coin placement)
+    for i in range(5):
+        items.append(Item(2500 + i*60, 420, 'coin'))
+    
+    for i in range(3):
+        items.append(Item(2900 + i*60, 420, 'coin'))
+    
+    # 파워업 아이템 (Power-up item)
+    items.append(Item(3100, 420, 'powerup'))
+    
+    # 스테이지 4: 어려운 점프 구간 (Stage 4: Difficult jumping section)
+    # ===================================================
+    
+    # 작은 발판 시퀀스 - 단일 점프로 도달 가능하도록 조정
+    # Small platform sequence - adjusted to be reachable with a single jump
+    platforms.append(Platform(3300, 550, 100, 50))
+    platforms.append(Platform(3450, 490, 80, 20))  # 간격 및 높이 조정 (Adjusted spacing and height)
+    platforms.append(Platform(3600, 490, 80, 20))  # 높이 통일 (Unified height)
+    platforms.append(Platform(3750, 490, 80, 20))  # 높이 통일 (Unified height)
+    platforms.append(Platform(3900, 550, 100, 50))
+    
+    # 코인 배치 (Coin placement)
+    items.append(Item(3490, 440, 'coin'))
+    items.append(Item(3640, 440, 'coin'))
+    items.append(Item(3790, 440, 'coin'))
+    
+    # 스테이지 5: 최종 도전 구간 (Stage 5: Final challenge)
+    # ===================================================
+    
+    # 마지막 바닥 구간 (Last floor section)
+    platforms.append(Platform(4150, 550, 300, 50))
+    
+    # 최종 점프 챌린지 - 간격 및 높이 조정 (Final jump challenge - adjusted spacing and height)
+    platforms.append(Platform(4500, 500, 80, 20))  # 간격 및 높이 조정 (Adjusted spacing and height)
+    platforms.append(Platform(4630, 500, 80, 20))  # 높이 통일 (Unified height)
+    platforms.append(Platform(4760, 500, 80, 20))  # 높이 통일 (Unified height)
+    platforms.append(Platform(4890, 500, 150, 20))  # 최종 목표 플랫폼 (Final goal platform)
+    
+    # 최종 함정 (Final traps)
+    traps.append(Trap(4450, 550, 440, 50, 'lava'))  # 큰 용암 웅덩이 (Large lava pit)
+    
+    # 최종 보상 (Final rewards)
+    items.append(Item(4540, 450, 'coin'))
+    items.append(Item(4670, 450, 'coin'))
+    items.append(Item(4800, 450, 'coin'))
+    items.append(Item(4950, 450, 'life'))  # 마지막 생명 아이템 (Final life item)
     
     return platforms, traps, items, map_width
 
@@ -334,6 +371,12 @@ while game_running:
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_SPACE:
                 cat_player.jump(True)  # 점프 키 누름 (Jump key pressed)
+            # 재시작 키 추가 (Add restart key)
+            if event.key == pygame.K_r:
+                cat_player = Cat(100, 300)
+                platforms, traps, items, map_width = generate_map()
+                camera_obj = Camera(map_width)
+                score = 0
         
         if event.type == pygame.KEYUP:
             if event.key == pygame.K_SPACE:
@@ -456,9 +499,7 @@ while game_running:
     position_text = font.render(f"Position: {int(cat_player.x)}/{map_width}", True, WHITE)
     screen.blit(position_text, (20, 80))
     
-    # 점프 상태 표시 (Display jump status)
-    jump_text = font.render(f"Jumps: {cat_player.jump_count}/2", True, WHITE)
-    screen.blit(jump_text, (20, 110))
+    # 점프 상태 표시 제거 (Removed jump status display)
     
     # 화면 업데이트 (Update screen)
     pygame.display.flip()
