@@ -103,10 +103,23 @@ class Cat:
         self.jump_time = 0            # 점프 지속 시간
         self.max_jump_time = 15       # 최대 점프 유지 시간
         
+
+        #-------------------------------------------------250402_15h testing..
+
+        # 졸라맨 팔/다리 흔들림 변수
+        self.arm_angle = 0
+        self.arm_direction = 1
+        self.leg_angle = 0
+        self.leg_direction = 1
+
+        #-------------------------------------------------250402_15h testing..
+
+
         # 실제 이미지로 나중에 대체. 현재는 도형 사용
         self.image = pygame.Surface((self.width, self.height))
         self.image.fill(BLUE)
         
+
     def update(self, platforms, traps, keys):
         # 이전 위치 저장
         prev_x = self.x
@@ -120,6 +133,38 @@ class Cat:
             self.velocity_y = self.jump_power * 0.6
             self.jump_time += 1
         
+
+        #-------------------------------------------------250402_15h testing..
+
+         # 이동 입력 체크
+        moving = False
+        if keys[pygame.K_LEFT] or keys[pygame.K_RIGHT]:
+            moving = True
+
+        # 흔들림 업데이트
+        if moving:
+            self.arm_angle += 4 * self.arm_direction
+            if abs(self.arm_angle) > 10:
+                self.arm_direction *= -1
+
+            self.leg_angle += 4 * self.leg_direction
+            if abs(self.leg_angle) > 10:
+                self.leg_direction *= -1
+        else:
+            if self.arm_angle > 0:
+                self.arm_angle -= 1
+            elif self.arm_angle < 0:
+                self.arm_angle += 1
+
+            if self.leg_angle > 0:
+                self.leg_angle -= 1
+            elif self.leg_angle < 0:
+                self.leg_angle += 1
+
+        #-------------------------------------------------250402_15h testing..
+
+
+
         # 위치 업데이트 - X와 Y 분리하여 충돌 체크 개선
         self.x += self.velocity_x  # X 방향 이동
         
@@ -191,7 +236,11 @@ class Cat:
         center_y = screen_y + self.height // 2
 
         # 스틱맨 그리기 (팔/다리 흔들림 각도는 필요시 조정)
-        draw_stickman(center_x, center_y, arm_angle=0, leg_angle=0)
+        #draw_stickman(center_x, center_y, arm_angle=0, leg_angle=0)
+
+        draw_stickman(center_x, center_y, arm_angle=self.arm_angle, leg_angle=self.leg_angle)
+
+
         
     def collision_check(self, obj):
         return (self.x < obj.x + obj.width and
