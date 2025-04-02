@@ -2,7 +2,7 @@ import pygame
 import pytest
 
 class load_head_image():
-    def __init__(self,img_path):
+    def __init__(self, img_path):
         super(load_head_image,self).__init__()
         self.img_path = img_path
         

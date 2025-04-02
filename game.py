@@ -1,6 +1,7 @@
 import pygame
 import sys
 import math
+from image_loader import load_head_image
 
 # 초기화
 pygame.init()
@@ -34,7 +35,9 @@ clock = pygame.time.Clock()
 # 졸라맨 그리기 함수
 def draw_stickman(x, y, arm_angle, leg_angle):
     # 머리
-    pygame.draw.circle(screen, BLACK, (x, y - 30), 20, 2)
+    player = load_head_image("./image/hwan_no_bg.JPG")
+    player_head = player.load_image(40, 50)
+    screen.blit(player_head, (x - 20, y - 55))
     # 몸통
     pygame.draw.line(screen, BLACK, (x, y - 10), (x, y + 30), 2)
     # 기본 팔
