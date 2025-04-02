@@ -1,6 +1,7 @@
 import pygame
 import sys
 import random
+from game import draw_stickman
 
 # Pygame 초기화
 pygame.init()
@@ -60,19 +61,6 @@ def get_font():
 # 폰트 설정
 font = get_font()
 
-# 이미지 불러오기 함수
-def load_image(filename, scale=1):
-    try:
-        image = pygame.image.load(filename).convert_alpha()
-        original_size = image.get_size()
-        new_size = (int(original_size[0] * scale), int(original_size[1] * scale))
-        return pygame.transform.scale(image, new_size)
-    except:
-        # 이미지를 찾을 수 없는 경우 임시 이미지 생성
-        temp_surface = pygame.Surface((50, 50))
-        temp_surface.fill(RED)
-        return temp_surface
-
 # 카메라 클래스 - 맵 스크롤링 관리
 class Camera:
     def __init__(self, map_width):
@@ -102,7 +90,7 @@ class Cat:
         self.x = x
         self.y = y
         self.width = 50
-        self.height = 50
+        self.height = 200
         self.velocity_x = 0
         self.velocity_y = 0
         self.jump_power = -15
@@ -197,8 +185,14 @@ class Cat:
     def draw(self, camera):
         # 카메라 적용하여 화면 위치 계산
         screen_x, screen_y = camera.apply(self)
-        screen.blit(self.image, (screen_x, screen_y))
-    
+        
+        # 중심 좌표 계산 (self.x, self.y는 왼쪽 위 기준)
+        center_x = screen_x + self.width // 2
+        center_y = screen_y + self.height // 2
+
+        # 스틱맨 그리기 (팔/다리 흔들림 각도는 필요시 조정)
+        draw_stickman(center_x, center_y, arm_angle=0, leg_angle=0)
+        
     def collision_check(self, obj):
         return (self.x < obj.x + obj.width and
                 self.x + self.width > obj.x and
